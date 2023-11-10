@@ -94,7 +94,7 @@ public class PokemonServiceImpl implements PokemonService {
 
             pokemon.setName(randomPokemonName);
             System.out.println(pokemon.getName());
-            pokemon.setDescription(getDescription(descriptionRoot));
+            pokemon.setDescription(cleanPokedexDescription(getDescription(descriptionRoot)));
             pokemon.setAbilities(getAbilities(rootNode));
             pokemon.setType(getTypes(rootNode));
             pokemon.setRegion(getRegion(descriptionRoot));
@@ -322,4 +322,18 @@ public class PokemonServiceImpl implements PokemonService {
 
         return pokemonNames[randomIndex];
     }
+
+    /**
+     * Limpia la descripción de la Pokédex, eliminando los saltos de línea.
+     *
+     * @param pokedexDescription Descripción de la Pokédex que puede contener saltos de línea.
+     * @return Descripción de la Pokédex sin saltos de línea.
+     */
+    private String cleanPokedexDescription(String pokedexDescription) {
+        if (pokedexDescription != null) {
+            return pokedexDescription.replaceAll("\\s+", " ").trim();
+        }
+        return "";
+    }
+
 }
