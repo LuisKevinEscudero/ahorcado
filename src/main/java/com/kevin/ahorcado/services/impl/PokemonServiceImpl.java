@@ -37,7 +37,7 @@ public class PokemonServiceImpl implements PokemonService {
      *
      * @return Objeto Pokémon correspondiente al día actual.
      * @throws PokemonException Si hay un error al procesar el Pokémon en caché o al generar uno nuevo.
-     * @throws JsonProcessingException Si hay un error al procesar la representación en forma de String del Pokémon.
+     * @throws JsonProcessingException Sí hay un error al procesar la representación en forma de String del Pokémon.
      */
     @Override
     public Pokemon getDailyPokemon() throws PokemonException, JsonProcessingException {
