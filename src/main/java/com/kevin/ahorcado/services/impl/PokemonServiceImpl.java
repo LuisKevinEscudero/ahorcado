@@ -71,40 +71,49 @@ public class PokemonServiceImpl implements PokemonService {
     @Override
     public Pokemon getRandomPokemon() throws PokemonException, JsonProcessingException {
 
-        String pokemonListResponse = restTemplate.getForObject(POKEAPI_URL, String.class);
-        String[] pokemonNames = processPokemonListResponse(pokemonListResponse); // Procesa la respuesta para obtener los nombres de los Pokémon
+        Pokemon pokemon = new Pokemon();
+        int randomPokemonNumber = getRandomPokemonNumber();
+        String pokemonDetailsJson = restTemplate.getForObject(POKEAPI_POKEMON_URL + randomPokemonNumber, String.class);
+        String pokemonSpeciesJson = restTemplate.getForObject(POKEAPI_POKEMON_SPECIES_URL + randomPokemonNumber, String.class);
 
-        if (pokemonNames.length > 0) {
-            Pokemon pokemon = new Pokemon();
-            String randomPokemonName = getRandomPokemonName(pokemonNames);
-            String pokemonDetailsJson = restTemplate.getForObject(POKEAPI_POKEMON_URL + randomPokemonName, String.class);
-            String pokemonSpeciesJson = restTemplate.getForObject(POKEAPI_POKEMON_SPECIES_URL + randomPokemonName, String.class);
-
-            if(pokemonDetailsJson == null) {
-                throw new PokemonException("No se encontraron Pokémon.", HttpStatus.NOT_FOUND);
-            }
-
-            if(pokemonSpeciesJson == null) {
-                throw new PokemonException("No se encontraron Pokémon.", HttpStatus.NOT_FOUND);
-            }
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            JsonNode rootNode = objectMapper.readTree(pokemonDetailsJson);
-            JsonNode descriptionRoot = objectMapper.readTree(pokemonSpeciesJson);
-
-            pokemon.setName(randomPokemonName);
-            System.out.println(pokemon.getName());
-            pokemon.setDescription(cleanPokedexDescription(getDescription(descriptionRoot)));
-            pokemon.setAbilities(getAbilities(rootNode));
-            pokemon.setType(getTypes(rootNode));
-            pokemon.setRegion(getRegion(descriptionRoot));
-            pokemon.setImageUrl(getImageUrl(rootNode));
-
-            return pokemon;
-
-        } else {
+        if(pokemonDetailsJson == null) {
             throw new PokemonException("No se encontraron Pokémon.", HttpStatus.NOT_FOUND);
         }
+
+        if(pokemonSpeciesJson == null) {
+            throw new PokemonException("No se encontraron Pokémon.", HttpStatus.NOT_FOUND);
+        }
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        JsonNode rootNode = objectMapper.readTree(pokemonDetailsJson);
+        JsonNode descriptionRoot = objectMapper.readTree(pokemonSpeciesJson);
+
+        pokemon.setName(getName(rootNode));
+        System.out.println(pokemon.getName());
+        pokemon.setDescription(cleanPokedexDescription(getDescription(descriptionRoot)));
+        pokemon.setAbilities(getAbilities(rootNode));
+        pokemon.setType(getTypes(rootNode));
+        pokemon.setRegion(getRegion(descriptionRoot));
+        pokemon.setImageUrl(getImageUrl(rootNode));
+
+        return pokemon;
+
+    }
+
+    /**
+     * Obtiene el nombre de un Pokémon a partir de un nodo JSON proporcionado por la PokeAPI.
+     *
+     * @param rootNode El nodo JSON que contiene los datos del Pokémon.
+     * @return El nombre del Pokémon.
+     * @throws PokemonException Si los datos de nombre de Pokémon son nulos o incompletos.
+     * @throws HttpStatus.INTERNAL_SERVER_ERROR Si se produce un error interno al procesar los datos.
+     */
+    private String getName(JsonNode rootNode) throws PokemonException {
+        if (rootNode == null || !rootNode.has("name")) {
+            throw new PokemonException("Datos de nombre de Pokémon incompletos o nulos.", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        return rootNode.get("name").asText();
     }
 
     /**
@@ -334,6 +343,17 @@ public class PokemonServiceImpl implements PokemonService {
             return pokedexDescription.replaceAll("\\s+", " ").trim();
         }
         return "";
+    }
+
+    /**
+     * Genera un número aleatorio que representa un índice de Pokémon.
+     *
+     * @return Un número aleatorio en el rango [1, 1008] que representa el índice de un Pokémon.
+     */
+    private int getRandomPokemonNumber() {
+        Random random = new Random();
+        int randomIndex = random.nextInt(1008) + 1;
+        return randomIndex;
     }
 
 }
