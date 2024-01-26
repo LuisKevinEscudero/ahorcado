@@ -14,7 +14,7 @@ import java.util.Random;
 
 @RestController
 @RequestMapping("/pokemon")
-@CrossOrigin(origins = {"http://localhost:3000", "https://luiskevinescudero.github.io" })
+@CrossOrigin
 public class pokemonController {
 
     private final PokemonService pokemonService;

@@ -1,6 +1,7 @@
 package com.kevin.ahorcado.services.impl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kevin.ahorcado.exceptions.PokemonException;
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
 @Service
 public class PokemonServiceImpl implements PokemonService {
@@ -73,6 +75,7 @@ public class PokemonServiceImpl implements PokemonService {
 
         Pokemon pokemon = new Pokemon();
         int randomPokemonNumber = getRandomPokemonNumber();
+        //randomPokemonNumber=204;
         String pokemonDetailsJson = restTemplate.getForObject(POKEAPI_POKEMON_URL + randomPokemonNumber, String.class);
         String pokemonSpeciesJson = restTemplate.getForObject(POKEAPI_POKEMON_SPECIES_URL + randomPokemonNumber, String.class);
 
@@ -88,9 +91,9 @@ public class PokemonServiceImpl implements PokemonService {
         JsonNode rootNode = objectMapper.readTree(pokemonDetailsJson);
         JsonNode descriptionRoot = objectMapper.readTree(pokemonSpeciesJson);
 
-        pokemon.setName(getName(rootNode));
-        System.out.println(pokemon.getName());
-        pokemon.setDescription(cleanPokedexDescription(getDescription(descriptionRoot)));
+        pokemon.setName(getName(descriptionRoot));
+        System.err.println(pokemon.getName());
+        pokemon.setDescription(cleanPokedexDescription(getDescription(descriptionRoot), pokemon.getName()));
         pokemon.setAbilities(getAbilities(rootNode));
         pokemon.setType(getTypes(rootNode));
         pokemon.setRegion(getRegion(descriptionRoot));
@@ -109,11 +112,26 @@ public class PokemonServiceImpl implements PokemonService {
      * @throws HttpStatus.INTERNAL_SERVER_ERROR Si se produce un error interno al procesar los datos.
      */
     private String getName(JsonNode rootNode) throws PokemonException {
-        if (rootNode == null || !rootNode.has("name")) {
+        if (rootNode == null || !rootNode.has("names")) {
             throw new PokemonException("Datos de nombre de Pokémon incompletos o nulos.", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
-        return rootNode.get("name").asText();
+        JsonNode namesNode = rootNode.get("names");
+        
+        // Buscar el nombre en español en la lista de nombres
+        for (JsonNode nameEntry : namesNode) {
+            if (nameEntry.has("language") && nameEntry.has("name")) {
+                JsonNode languageNode = nameEntry.get("language");
+                
+                // Verificar si el idioma es español (es)
+                if (languageNode.has("name") && languageNode.get("name").asText().equals("es")) {
+                    return nameEntry.get("name").asText();
+                }
+            }
+        }
+
+        // Lanzar una excepción si no se encuentra el nombre en español
+        throw new PokemonException("Nombre del Pokémon no encontrado en español.", HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     /**
@@ -124,6 +142,7 @@ public class PokemonServiceImpl implements PokemonService {
      * @throws PokemonException Si los datos de descripción de Pokémon son nulos, incompletos o no son un array,
      *                          o si la descripción en inglés no está presente en las entradas de texto.
      */
+
     private String getDescription(JsonNode descriptionRoot) throws PokemonException {
         if (descriptionRoot == null || !descriptionRoot.has("flavor_text_entries")) {
             throw new PokemonException("Datos de descripción de Pokémon incompletos o nulos.", HttpStatus.INTERNAL_SERVER_ERROR);
@@ -131,7 +150,9 @@ public class PokemonServiceImpl implements PokemonService {
 
         JsonNode flavorTextEntries = descriptionRoot.get("flavor_text_entries");
 
-        String flavorText = "Descripción no encontrada";
+        // Almacenar descripciones disponibles en español e inglés
+        List<String> spanishDescriptions = new ArrayList<>();
+        List<String> englishDescriptions = new ArrayList<>();
 
         if (flavorTextEntries != null && flavorTextEntries.isArray()) {
             for (JsonNode entry : flavorTextEntries) {
@@ -139,22 +160,37 @@ public class PokemonServiceImpl implements PokemonService {
                 JsonNode flavorTextNode = entry.path("flavor_text");
 
                 if (languageNode != null && flavorTextNode != null &&
-                        languageNode.has("name") && flavorTextNode.isTextual() &&
-                        "en".equals(languageNode.get("name").asText())) {
-                    flavorText = flavorTextNode.asText();
-                    break;
+                        languageNode.has("name") && flavorTextNode.isTextual()) {
+                    String language = languageNode.get("name").asText();
+
+                    if ("es".equals(language)) {
+                        spanishDescriptions.add(flavorTextNode.asText());
+                    } else if ("en".equals(language)) {
+                        englishDescriptions.add(flavorTextNode.asText());
+                    }
                 }
             }
         } else {
             throw new PokemonException("Datos de entradas de descripción de Pokémon no son un array.", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
-        if (flavorText.equals("Descripción no encontrada")) {
+        // Elegir aleatoriamente entre descripciones en español e inglés
+        Random random = new Random();
+        String selectedDescription;
+
+        if (!spanishDescriptions.isEmpty()) {
+            selectedDescription = spanishDescriptions.get(random.nextInt(spanishDescriptions.size()));
+        } else if (!englishDescriptions.isEmpty()) {
+            selectedDescription = englishDescriptions.get(random.nextInt(englishDescriptions.size()));
+        } else {
             throw new PokemonException("Descripción no encontrada.", HttpStatus.NOT_FOUND);
         }
 
-        return flavorText;
+        return selectedDescription;
     }
+
+
+
 
     /**
      * Obtiene la lista de habilidades de un Pokémon a partir de un nodo JSON.
@@ -162,8 +198,10 @@ public class PokemonServiceImpl implements PokemonService {
      * @param rootNode Nodo JSON que contiene la información del Pokémon.
      * @return Lista de habilidades del Pokémon.
      * @throws PokemonException Si los datos de habilidades de Pokémon son nulos, incompletos, o no son un array, o si los datos de habilidad son incompletos.
+     * @throws JsonProcessingException 
+     * @throws JsonMappingException 
      */
-    private List<String> getAbilities(JsonNode rootNode) throws PokemonException {
+    private List<String> getAbilities(JsonNode rootNode) throws PokemonException, JsonMappingException, JsonProcessingException {
         List<String> abilities = new ArrayList<>();
 
         if (rootNode == null || !rootNode.has("abilities")) {
@@ -177,7 +215,16 @@ public class PokemonServiceImpl implements PokemonService {
                 JsonNode abilityNameNode = abilityNode.path("ability");
 
                 if (abilityNameNode != null && abilityNameNode.has("name")) {
-                    abilities.add(abilityNameNode.get("name").asText());
+                    String abilityName = abilityNameNode.get("name").asText();
+
+                    // Obtener URL de la habilidad
+                    String abilityUrl = abilityNameNode.get("url").asText();
+
+                    // Obtener el nombre de la habilidad en español
+                    String abilityNameSpanish = obtenerNombreHabilidadEspañol(abilityUrl);
+
+                    // Si no se encuentra en español, usar el nombre en inglés
+                    abilities.add(abilityNameSpanish != null ? abilityNameSpanish : abilityName);
                 } else {
                     throw new PokemonException("Datos de habilidad de Pokémon incompletos.", HttpStatus.INTERNAL_SERVER_ERROR);
                 }
@@ -187,6 +234,32 @@ public class PokemonServiceImpl implements PokemonService {
         }
 
         return abilities;
+    }
+    
+    private String obtenerNombreHabilidadEspañol(String abilityUrl) throws PokemonException, JsonMappingException, JsonProcessingException {
+        String nombreHabilidadEspanol = null;
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        RestTemplate restTemplate = new RestTemplate();
+        String response = restTemplate.getForObject(abilityUrl, String.class);
+
+        JsonNode jsonNode = objectMapper.readTree(response);
+        JsonNode namesNode = jsonNode.path("names");
+
+        for (JsonNode nameNode : namesNode) {
+            if (nameNode.has("language") && nameNode.path("language").has("name")
+                    && nameNode.path("language").path("name").asText().equals("es")) {
+                nombreHabilidadEspanol = nameNode.get("name").asText();
+                break;
+            }
+        }
+
+        // Lanzar una excepción si no se encuentra el nombre en español
+        if (nombreHabilidadEspanol == null) {
+            throw new PokemonException("Nombre de la habilidad no encontrado en español.", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        return nombreHabilidadEspanol;
     }
 
     /**
@@ -338,12 +411,16 @@ public class PokemonServiceImpl implements PokemonService {
      * @param pokedexDescription Descripción de la Pokédex que puede contener saltos de línea.
      * @return Descripción de la Pokédex sin saltos de línea.
      */
-    private String cleanPokedexDescription(String pokedexDescription) {
-        if (pokedexDescription != null) {
-            return pokedexDescription.replaceAll("\\s+", " ").trim();
+    private String cleanPokedexDescription(String pokedexDescription, String pokemonName) {
+        if (pokedexDescription != null && pokemonName != null && !pokemonName.isEmpty()) {
+            // Reemplazar el nombre del Pokémon con asteriscos en la descripción
+            String cleanedDescription = pokedexDescription.replaceAll("\\s+", " ").trim();
+            cleanedDescription = cleanedDescription.replaceAll("(?i)\\b" + Pattern.quote(pokemonName) + "\\b", "*".repeat(pokemonName.length()));
+            return cleanedDescription;
         }
         return "";
     }
+
 
     /**
      * Genera un número aleatorio que representa un índice de Pokémon.
