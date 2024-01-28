@@ -11,7 +11,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
-@CrossOrigin("http://localhost:3000")
+@CrossOrigin({"http://localhost:3000", "https://luiskevinescudero.github.io"})
 public class VisitCounterController {
 
     private final SimpMessagingTemplate messagingTemplate;
@@ -19,59 +19,69 @@ public class VisitCounterController {
     private static final String VISIT_IP_ATTRIBUTE_NAME = "visitIp";
     private int visitCount = 0;
 
+    // Constructor que recibe SimpMessagingTemplate como parámetro
     public VisitCounterController(SimpMessagingTemplate messagingTemplate) {
         this.messagingTemplate = messagingTemplate;
     }
 
+    // Maneja las solicitudes GET a la ruta "/visit"
     @GetMapping("/visit")
     public int getVisitCount(HttpServletRequest request, HttpServletResponse response) {
+        // Obtiene la dirección IP del usuario
         String userIp = getClientIp(request);
-        System.err.println("Request received to /visit. User IP: " + userIp);
+        System.err.println("Solicitud recibida en /visit. IP del usuario: " + userIp);
 
+        // Verifica si el usuario ha visitado antes
         if (!hasVisited(request, userIp)) {
             visitCount++;
             setVisited(request, response, userIp);
+            // Envía el nuevo contador a todos los clientes suscritos al destino "/topic/visitCount"
             messagingTemplate.convertAndSend("/topic/visitCount", visitCount);
-            System.err.println("New visit detected. Incremented count to: " + visitCount);
+            System.err.println("Nueva visita detectada. Contador incrementado a: " + visitCount);
         } else {
-            System.err.println("User has visited before. Count remains at: " + visitCount);
+            System.err.println("El usuario ya ha visitado antes. El contador permanece en: " + visitCount);
         }
 
         return visitCount;
     }
 
+    // Maneja las solicitudes GET a la ruta "/incrementVisit"
     @GetMapping("/incrementVisit")
     public int incrementVisit() {
-        System.err.println("Request received to /incrementVisit");
+        System.err.println("Solicitud recibida en /incrementVisit");
         visitCount++;
-        // Enviar el nuevo contador a todos los clientes suscritos al destino "/topic/visitCount"
+        // Envía el nuevo contador a todos los clientes suscritos al destino "/topic/visitCount"
         messagingTemplate.convertAndSend("/topic/visitCount", visitCount);
-        System.err.println("Incremented count to: " + visitCount);
+        System.err.println("Contador incrementado a: " + visitCount);
         return visitCount;
     }
 
+    // Verifica si el usuario ha visitado antes
     private boolean hasVisited(HttpServletRequest request, String userIp) {
         String storedIp = (String) request.getSession().getAttribute(VISIT_IP_ATTRIBUTE_NAME);
 
         if (storedIp != null && storedIp.equals(userIp)) {
-            System.err.println("User has visited before. IP: " + userIp);
+            System.err.println("El usuario ya ha visitado antes. IP: " + userIp);
             return true;
         }
 
-        System.err.println("User is visiting for the first time. IP: " + userIp);
+        System.err.println("El usuario está visitando por primera vez. IP: " + userIp);
         return false;
     }
 
+    // Establece que el usuario ha visitado
     private void setVisited(HttpServletRequest request, HttpServletResponse response, String userIp) {
         request.getSession().setAttribute(VISIT_IP_ATTRIBUTE_NAME, userIp);
-        System.err.println("Setting visit IP attribute for IP: " + userIp);
+        System.err.println("Estableciendo atributo de IP de visita para la IP: " + userIp);
 
+        // Crea y configura una cookie de visita
         Cookie cookie = new Cookie(VISIT_COOKIE_NAME, userIp);
-        cookie.setMaxAge(3600 * 24 * 365); // 1 year expiration
+        cookie.setMaxAge(3600 * 24 * 365); // Expiración de 1 año
         response.addCookie(cookie);
-        System.err.println("Setting visit cookie for IP: " + userIp);
+        System.err.println("Estableciendo cookie de visita para la IP: " + userIp);
     }
 
+    // Obtiene la dirección IP del cliente
     private String getClientIp(HttpServletRequest request) {
         String userIp = request.getHeader("X-Forwarded-For");
 
@@ -90,38 +100,3 @@ public class VisitCounterController {
         return userIp;
     }
 }
-
-
-
-/*@RestController
-@CrossOrigin("http://localhost:3000")
-public class VisitCounterController {
-
-    private final SimpMessagingTemplate messagingTemplate;
-    private static final String VISIT_COOKIE_NAME = "visitCookie";
-    private int visitCount = 0;
-
-    public VisitCounterController(SimpMessagingTemplate messagingTemplate) {
-        this.messagingTemplate = messagingTemplate;
-    }
-
-    @GetMapping("/visit")
-    public int getVisitCount(@CookieValue(value = VISIT_COOKIE_NAME, defaultValue = "false") boolean visited,
-                             HttpServletResponse response) {
-        if (!visited) {
-            visitCount++;
-            response.addCookie(new Cookie(VISIT_COOKIE_NAME, "true"));
-            messagingTemplate.convertAndSend("/topic/visitCount", visitCount);
-        }
-        return visitCount;
-    }
-
-    @GetMapping("/incrementVisit")
-    public int incrementVisit() {
-        System.err.println("entrada del incrementVisit");
-        visitCount++;
-        // Enviar el nuevo contador a todos los clientes suscritos al destino "/topic/visitCount"
-        messagingTemplate.convertAndSend("/topic/visitCount", visitCount);
-        return visitCount;
-    }
-}*/
