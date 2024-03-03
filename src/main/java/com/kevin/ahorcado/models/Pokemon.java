@@ -1,30 +1,66 @@
 package com.kevin.ahorcado.models;
 
 import java.io.Serializable;
-import java.util.List;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+
+@Entity
+@Table(name = "POKEMON")
 public class Pokemon implements Serializable {
 
-    String name;
-    String ImageUrl;
-    List<String> type;
-    String region;
-    String description;
-    List<String> abilities;
+    private static final long serialVersionUID = 1L;
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "ID")
+    private Long id;
+
+    @Column(name = "NAME")
+    private String name;
+
+    @Column(name = "IMAGEURL")
+    private String imageUrl;
+
+    @Column(name = "TYPE")
+    private String type;
+
+    @Column(name = "REGION")
+    private String region;
+
+    @Column(name = "DESCRIPTION")
+    private String description;
+
+    @Column(name = "ABILITY")
+    private String ability;
 
     public Pokemon() {
     }
 
-    public Pokemon(String name, String imageUrl, List<String> type, String region, String description, List<String> abilities) {
-        this.name = name;
-        ImageUrl = imageUrl;
-        this.type = type;
-        this.region = region;
-        this.description = description;
-        this.abilities = abilities;
-    }
+	public Pokemon(Long id, String name, String imageUrl, String type, String region, String description, String ability) {
+		this.id = id;
+		this.name = name;
+		this.imageUrl = imageUrl;
+		this.type = type;
+		this.region = region;
+		this.description = description;
+		this.ability = ability;
+	}
 
-    public String getName() {
+	public Long getId() {
+		return id;
+	}
+
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getName() {
         return name;
     }
 
@@ -33,19 +69,11 @@ public class Pokemon implements Serializable {
     }
 
     public String getImageUrl() {
-        return ImageUrl;
+        return imageUrl;
     }
 
     public void setImageUrl(String imageUrl) {
-        ImageUrl = imageUrl;
-    }
-
-    public List<String> getType() {
-        return type;
-    }
-
-    public void setType(List<String> type) {
-        this.type = type;
+        this.imageUrl = imageUrl;
     }
 
     public String getRegion() {
@@ -64,23 +92,26 @@ public class Pokemon implements Serializable {
         this.description = description;
     }
 
-    public List<String> getAbilities() {
-        return abilities;
-    }
+	public String getType() {
+		return type;
+	}
 
-    public void setAbilities(List<String> abilities) {
-        this.abilities = abilities;
-    }
+	public void setType(String type) {
+		this.type = type;
+	}
 
-    @Override
-    public String toString() {
-        return "Pokemon{" +
-                "name='" + name + '\'' +
-                ", ImageUrl='" + ImageUrl + '\'' +
-                ", type=" + type +
-                ", region='" + region + '\'' +
-                ", description='" + description + '\'' +
-                ", abilities=" + abilities +
-                '}';
-    }
+	public String getAbility() {
+		return ability;
+	}
+
+	public void setAbility(String ability) {
+		this.ability = ability;
+	}
+
+	@Override
+	public String toString() {
+		return "Pokemon [Id=" + id + ", name=" + name + ", ImageUrl=" + imageUrl + ", Type=" + type + ", region="
+				+ region + ", description=" + description + ", ability=" + ability + "]";
+	}
+
 }

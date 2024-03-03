@@ -1,0 +1,12 @@
+com\kevin\ahorcado\exceptions\ErrorResponseHttp.class
+com\kevin\ahorcado\controllers\pokemonController.class
+com\kevin\ahorcado\config\AppConfig.class
+com\kevin\ahorcado\config\WebSocketConfig.class
+com\kevin\ahorcado\repositories\PokemonRepository.class
+com\kevin\ahorcado\models\Pokemon.class
+com\kevin\ahorcado\controllers\VisitCounterController.class
+com\kevin\ahorcado\services\PokemonService.class
+com\kevin\ahorcado\services\impl\PokemonServiceImpl.class
+com\kevin\ahorcado\exceptions\GlobalExceptionHandler.class
+com\kevin\ahorcado\exceptions\PokemonException.class
+com\kevin\ahorcado\AhorcadoApplication.class

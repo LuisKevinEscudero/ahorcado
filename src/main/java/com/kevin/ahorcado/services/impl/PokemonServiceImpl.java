@@ -1,16 +1,5 @@
 package com.kevin.ahorcado.services.impl;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kevin.ahorcado.exceptions.PokemonException;
-import com.kevin.ahorcado.models.Pokemon;
-import com.kevin.ahorcado.services.PokemonService;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +7,19 @@ import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kevin.ahorcado.exceptions.PokemonException;
+import com.kevin.ahorcado.models.Pokemon;
+import com.kevin.ahorcado.repositories.PokemonRepository;
+import com.kevin.ahorcado.services.PokemonService;
 
 @Service
 public class PokemonServiceImpl implements PokemonService {
@@ -29,9 +31,12 @@ public class PokemonServiceImpl implements PokemonService {
     private final Map<String, String> dailyPokemon = new ConcurrentHashMap<>();
 
     private final RestTemplate restTemplate;
+    
+    private PokemonRepository pokemonRepository;
 
-    public PokemonServiceImpl(RestTemplate restTemplate) {
+    public PokemonServiceImpl(RestTemplate restTemplate, PokemonRepository pokemonRepository) {
         this.restTemplate = restTemplate;
+        this.pokemonRepository = pokemonRepository;
     }
 
     /**
@@ -94,10 +99,12 @@ public class PokemonServiceImpl implements PokemonService {
         pokemon.setName(getName(descriptionRoot));
         System.err.println(pokemon.getName());
         pokemon.setDescription(cleanPokedexDescription(getDescription(descriptionRoot), pokemon.getName()));
-        pokemon.setAbilities(getAbilities(rootNode));
-        pokemon.setType(getTypes(rootNode));
+        pokemon.setAbility( fromListToString( getAbilities(rootNode)) );
+        pokemon.setType( fromListToString( getTypes(rootNode)) );
         pokemon.setRegion(getRegion(descriptionRoot));
         pokemon.setImageUrl(getImageUrl(rootNode));
+        
+        pokemonRepository.save(pokemon);
 
         return pokemon;
 
@@ -224,7 +231,7 @@ public class PokemonServiceImpl implements PokemonService {
                     String abilityNameSpanish = obtenerNombreHabilidadEspañol(abilityUrl);
 
                     // Si no se encuentra en español, usar el nombre en inglés
-                    abilities.add(abilityNameSpanish != null ? abilityNameSpanish : abilityName);
+                    abilities.add(abilityNameSpanish != null ? abilityNameSpanish : abilityName );
                 } else {
                     throw new PokemonException("Datos de habilidad de Pokémon incompletos.", HttpStatus.INTERNAL_SERVER_ERROR);
                 }
@@ -283,7 +290,7 @@ public class PokemonServiceImpl implements PokemonService {
                 JsonNode typeNameNode = typeNode.path("type");
 
                 if (typeNameNode != null && typeNameNode.has("name")) {
-                    types.add(typeNameNode.get("name").asText());
+                    types.add( typeNameNode.get("name").asText() );
                 } else {
                     throw new PokemonException("Datos de tipo de Pokémon incompletos.", HttpStatus.INTERNAL_SERVER_ERROR);
                 }
@@ -432,5 +439,22 @@ public class PokemonServiceImpl implements PokemonService {
         int randomIndex = random.nextInt(1008) + 1;
         return randomIndex;
     }
+    
+    private String fromListToString(List<String> lista) {
+        if (lista.isEmpty()) {
+            return ""; // O podrías devolver null u otra cadena según tus necesidades.
+        } else if (lista.size() == 1) {
+            return lista.get(0);
+        } else {
+            StringBuilder result = new StringBuilder();
+            for (int i = 0; i < lista.size() - 1; i++) {
+                result.append(lista.get(i)).append(", ");
+            }
+            result.append(lista.get(lista.size() - 1));
+            System.err.println(result.toString());
+            return result.toString();
+        }
+    }
+
 
 }
